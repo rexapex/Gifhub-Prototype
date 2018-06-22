@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 
 jsgif
-https://github.com/antimatter15/jsgif/blob/master/LICENSE
+https://github.com/antimatter15/jsgif
 
 Copyright (c) 2010-2014 Kevin Kwok <antimatter15@gmail.com>
 
