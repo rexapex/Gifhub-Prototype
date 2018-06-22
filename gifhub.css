@@ -1,0 +1,86 @@
+body {
+    background-color: #555555;
+}
+
+#canvas {
+    float: left;
+    width: 47vw;
+    height: 26.4375vw;
+
+    margin-left: 1.0vw;
+    margin-right: 0.5vw;
+
+    background-color: #000;
+}
+
+#import-panel {
+    float: left;
+    display: block;
+
+    /* dimensions */
+    width: 47vw;
+    height: 26.4375vw;
+
+    /* leave space between canvas and window edge */
+    margin-left: 0.5vw;
+    margin-right: 1.0vw;
+
+    /* leave space between elements in the div and the top and bottom edges */
+    /*padding-top: 5px;
+    padding-bottom: 5px;*/
+    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;         /* Opera/IE 8+ */
+
+    /* rounded rectangle with border */
+    border-radius: 25px;
+    border: 2px solid #aaaaaa;
+    background-color: #666;
+
+    /* provide a vertical scrollbar only if one is needed */
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#import-button, #gen-gif-btn {
+    width: 200px;
+    height: 112.5px;
+    margin: 5px;
+    display: inline;
+    vertical-align: middle;
+
+    /* rounded rectangle with border */
+    border-radius: 25px;
+    border: 2px solid #aaaaaa;
+    background-color: #666;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff
+}
+
+.video-preview {
+    width: 200px;
+    height: auto;
+    margin: 5px;
+    display: inline;
+    vertical-align: middle;
+}
+
+#timeline {
+    float: left;
+    width: 95vw;
+    height: 30vh;
+    display: block;
+
+    /* leave space between canvas, import panel and window edges */
+    margin-top: 1.0vw;
+    margin-left: 1.0vw;
+    margin-right: 1.0vw;
+
+    /* rectangle border around the timeline */
+    border: 2px solid #aaaaaa;
+    background-color: #666;
+}
