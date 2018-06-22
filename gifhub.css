@@ -2,6 +2,58 @@ body {
     background-color: #555555;
 }
 
+#titlebar {
+    height: 10vh;
+    width: 100%;
+
+    background-color: #999;
+
+    top: 0;
+    left: 0;
+    padding-top: 0;
+    position: fixed;
+    margin: 0;
+    display: inline-block;
+}
+
+#title {
+    display: inline;
+    vertical-align: middle;
+    float: left;
+    margin-left: 25px;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff
+}
+
+#gen-gif-btn {
+    display: inline;
+    vertical-align: middle;
+    float: right;
+    margin-right: 25px;
+
+    /*border: 2px solid #aaaaaa;*/
+    border: none;
+    background-color: #666;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff
+}
+
+#gen-gif-btn:hover {
+    color: #77bbff;
+}
+
+#gen-gif-btn:active {
+    color: #77ffbb;
+}
+
 #canvas {
     float: left;
     width: 47vw;
@@ -33,7 +85,7 @@ body {
     box-sizing: border-box;         /* Opera/IE 8+ */
 
     /* rounded rectangle with border */
-    border-radius: 25px;
+    /*border-radius: 25px;*/
     border: 2px solid #aaaaaa;
     background-color: #666;
 
@@ -42,7 +94,7 @@ body {
     overflow-x: hidden;
 }
 
-#import-button, #gen-gif-btn {
+#import-button {
     width: 200px;
     height: 112.5px;
     margin: 5px;
@@ -50,7 +102,7 @@ body {
     vertical-align: middle;
 
     /* rounded rectangle with border */
-    border-radius: 25px;
+    /*border-radius: 25px;*/
     border: 2px solid #aaaaaa;
     background-color: #666;
 
@@ -59,6 +111,14 @@ body {
     font-size: 24px;
     font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
     color: #fff
+}
+
+#import-button:hover {
+    color: #77bbff;
+}
+
+#import-button:active {
+    color: #77ffbb;
 }
 
 .video-preview {
@@ -72,7 +132,7 @@ body {
 #timeline {
     float: left;
     width: 95vw;
-    height: 30vh;
+    height: 20vh;
     display: block;
 
     /* leave space between canvas, import panel and window edges */

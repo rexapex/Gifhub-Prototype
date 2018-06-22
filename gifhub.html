@@ -5,12 +5,16 @@
     <link rel="stylesheet" type="text/css" href="gifhub.css">
 </head>
 <body>
+    <div id="titlebar">
+        <h2 id="title">Gifmaker</h2>
+        <button id="gen-gif-btn">Generate GIF</button>
+    </div>
+    <div style="height: 10vh; width: 100%"></div>
     <canvas id="canvas"></canvas>
     <div id="import-panel">
         <button id="import-button">Import</button>
     </div>
     <canvas id="timeline"></canvas>
-    <button id="gen-gif-btn">Generate GIF</button>
     <img id="the-gif" style=""><img>
     <script type="text/javascript" src="jsgif/LZWEncoder.js"></script>
     <script type="text/javascript" src="jsgif/NeuQuant.js"></script>
