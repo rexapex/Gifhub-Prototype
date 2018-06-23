@@ -89,6 +89,7 @@ var Display = (function() {
         var video = segment ? segment.video : null;
         var currentSegment = 0;
         if(video) {
+            var frames = [];
             // with help from stack overflow
             // https://stackoverflow.com/questions/4429440/html5-display-video-inside-canvas
             var scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
@@ -99,7 +100,8 @@ var Display = (function() {
                 // lower the resolution so the gif it doesn't take too long
             //    canvas.setAttribute("width", "512px");
             //    canvas.setAttribute("height", "288px");
-                encoder.start();
+        //        encoder.start();
+                record(encoder, frames);
             }
             video.play();
             (function loop() {
@@ -121,10 +123,7 @@ var Display = (function() {
                         video.play();
                     } else {
                         if(encoder) {
-                            encoder.finish();
-                            var binary_gif = encoder.stream().getData() //notice this is different from the as3gif package!
-                            var dataURL = 'data:image/gif;base64,' + encode64(binary_gif);
-                            document.getElementById("the-gif").setAttribute("src", dataURL);
+                            GifGenerator.encode(encoder, frames);
                             // sets the resolution as opposed to the screen space used
                     //        canvas.setAttribute("width", "1366px");
                     //        canvas.setAttribute("height", "768px");
@@ -138,9 +137,9 @@ var Display = (function() {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(video, left, top, video.videoWidth * scale, video.videoHeight * scale);
 
-                    if(encoder) {
-                        encoder.addFrame(ctx);
-                    }
+        //            if(encoder) {
+        //                encoder.addFrame(ctx);
+        //            }
 
                     // if the user is mousing over the video, display a pause button over the frame
                     if(showPauseButton) {
@@ -151,6 +150,25 @@ var Display = (function() {
                     requestAnimationFrame(loop);
                 }
             })();
+        }
+    }
+
+    function record(encoder, frames) {
+        var timeoutID;
+        frames.length = 0;
+
+        (function loop() {
+            var startTime = performance.now();
+            frames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+
+            // set the timeout to give 20fps
+            var timeElapsed = performance.now() - startTime;
+            timeoutID = setTimeout(loop, 50 - timeElapsed);
+        })();
+
+        // return a callback to be called when video has ended
+        return function() {
+            clearTimeout(timeoutID);
         }
     }
 
@@ -207,7 +225,7 @@ var Display = (function() {
 
     function onMouseLeave() {
         showPauseButton = false;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+//        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     return { init, play, pause };
@@ -275,12 +293,30 @@ var GifGenerator = (function() {
 
     function generate() {
         var encoder = new GIFEncoder();
-        encoder.setRepeat(0);   // loop until told to stop
-        encoder.setDelay(100);  // capture every x ms
         Display.play(encoder);
     }
 
-    return { init };
+    function encode(encoder, frames) {
+        console.log(frames.length + " frames captured");
+        encoder.setRepeat(0);       // loop until told to stop
+        encoder.setDelay(50);       // capture every x ms
+        encoder.setSize(canvas.width, canvas.height);
+        encoder.setProperties(true, true); // started, firstFrame
+        encoder.start();
+
+        for(var frame of frames)
+        {
+            console.log(encoder.addFrame(frame, true));
+            encoder.setProperties(true, false); // started, firstFrame
+        }
+
+        encoder.finish();
+        var binaryGIF = encoder.stream().getData();
+        var dataURL = 'data:image/gif;base64,' + encode64(binaryGIF);
+        document.getElementById("the-gif").setAttribute("src", dataURL);
+    }
+
+    return { init, encode };
 })();
 
 // a nice helper function
