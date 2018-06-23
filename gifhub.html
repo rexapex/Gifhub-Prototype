@@ -14,7 +14,7 @@
     <div id="titlebar">
         <h2 id="title">Gifhub Pre-Pre-Pre-Alpha</h2>
         <button id="gen-gif-btn" class="titlebar-btn">Generate GIF</button>
-        <!--<button id="home-btn" class="titlebar-btn">Home</button>-->
+        <button id="home-btn" class="titlebar-btn" onclick="navToHome()">Home</button>
     </div>
     <div style="height: 60px; width: 100%"></div>
     <canvas id="canvas"></canvas>
@@ -30,5 +30,10 @@
     <script type="text/javascript" src="jsgif/GIFEncoder.js"></script>
     <script type="text/javascript" src="jsgif/b64.js"></script>
     <script type="text/javascript" src="gifhub.js"></script>
+    <script>
+        function navToHome() {
+            window.location.assign("home.html");
+        }
+    </script>
 </body>
 </html>
