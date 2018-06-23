@@ -96,14 +96,22 @@ var Display = (function() {
             var left = canvas.width / 2 - (video.videoWidth / 2) * scale;
             var top = canvas.height / 2 - (video.videoHeight / 2) * scale;
             video.currentTime = segment.startTime;
-            if(encoder) {
-                // lower the resolution so the gif it doesn't take too long
-            //    canvas.setAttribute("width", "512px");
-            //    canvas.setAttribute("height", "288px");
-        //        encoder.start();
-                record(encoder, frames);
-            }
             video.play();
+
+            var doneRecordingCallback;
+            if(encoder) {
+                // record the newly created video track
+                doneRecordingCallback = record(encoder, frames);
+                // calculate the total duration of all clips
+                var totalDuration = 0;
+                for(var segment of Timeline.segments) {
+                    totalDuration += segment.endTime - segment.startTime;
+                }
+                document.getElementById("progress-lbl").innerHTML = "Recording";
+                document.getElementById("progress-bar").value = 0;
+                document.getElementById("progress-bar").max = Math.floor(totalDuration);
+            }
+
             (function loop() {
                 // if the video has ended or the segment has surpassed its duration
                 if(video.ended || segment.endTime <= video.currentTime) {
@@ -123,11 +131,10 @@ var Display = (function() {
                         video.play();
                     } else {
                         if(encoder) {
+                            // notify recorder that recording has finished
+                            doneRecordingCallback();
+                            // encode the set of frames recorded to create a gif image
                             GifGenerator.encode(encoder, frames);
-                            // sets the resolution as opposed to the screen space used
-                    //        canvas.setAttribute("width", "1366px");
-                    //        canvas.setAttribute("height", "768px");
-                            //encoder.download("download.gif");
                         }
                     }
                 }
@@ -136,10 +143,6 @@ var Display = (function() {
                     // render the video frame
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(video, left, top, video.videoWidth * scale, video.videoHeight * scale);
-
-        //            if(encoder) {
-        //                encoder.addFrame(ctx);
-        //            }
 
                     // if the user is mousing over the video, display a pause button over the frame
                     if(showPauseButton) {
@@ -154,21 +157,26 @@ var Display = (function() {
     }
 
     function record(encoder, frames) {
-        var timeoutID;
+        var finishedRecording;
         frames.length = 0;
+        var recordingStartTime = performance.now();
 
         (function loop() {
             var startTime = performance.now();
             frames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
+            document.getElementById("progress-bar").value = Math.floor((performance.now() - recordingStartTime) / 1000);
+
             // set the timeout to give 20fps
             var timeElapsed = performance.now() - startTime;
-            timeoutID = setTimeout(loop, 50 - timeElapsed);
+            if(!finishedRecording) {
+                setTimeout(loop, 50 - timeElapsed);
+            }
         })();
 
         // return a callback to be called when video has ended
         return function() {
-            clearTimeout(timeoutID);
+            finishedRecording = true;
         }
     }
 
@@ -238,9 +246,12 @@ var Timeline = (function() {
     function init() {
         timelineCanvas.ondragover = allowDrop;
         timelineCanvas.ondrop = drop;
+        timelineCanvas.onmousemove = mouseMove;
+        timelineCanvas.onclick = mouseDown;
+        refresh();
     }
 
-    function refresh() {
+    function refresh(mousex, mousey, mousedown) {
         // clear the timeline of all graphics
         timelineCtx.clearRect(0, 0, timelineCanvas.width, timelineCanvas.height);
 
@@ -250,13 +261,32 @@ var Timeline = (function() {
             totalDuration += segment.endTime - segment.startTime;
         }
 
+        var colors = [ "#bbb", "#999" ];
+        var hoverColor = "#77bbff";
+        var activeColor = "#77ffbb";
+
         var offsetX = 50;
-        for(var segment of segments) {
+        for(var segmentIndex in segments) {
+            var segment = segments[segmentIndex];
             var imgHeight = timelineCanvas.height * 0.5;
             //var imgWidth = Math.floor(imgHeight * 16 / 9);
             var imgWidth = 200;
             var rectLength = Math.floor(segment.video.duration / totalDuration * (timelineCanvas.width - 100));
-            drawBorderRect(timelineCtx, offsetX, timelineCanvas.height/2-imgHeight/4, rectLength, imgHeight/2);
+
+            // calculate the co-ordinates and dimensions of the rectangle
+            var y = timelineCanvas.height/2-imgHeight/4;
+            var height = imgHeight/2;
+
+            var color;
+            console.log(offsetX, offsetX + rectLength, y, y + height)
+            if(mousex > offsetX && mousex < offsetX + rectLength &&
+                mousey > y && mousey < y + height) {
+                color = mousedown ? activeColor : hoverColor;
+            } else {
+                 color = colors[segmentIndex % colors.length];
+            }
+
+            drawBorderRect(timelineCtx, offsetX, y, rectLength, height, "#fff", color);
             //timelineCtx.drawImage(video, rectLength/2-imgWidth/2, timelineCanvas.height/2-imgHeight/2, imgWidth, imgHeight);
 
             offsetX += rectLength;
@@ -282,6 +312,16 @@ var Timeline = (function() {
         refresh();
     }
 
+    function mouseMove(e) {
+        console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+    }
+
+    function mouseDown(e) {
+        console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+    }
+
     return { init, segments, refresh };
 })();
 
@@ -292,11 +332,19 @@ var GifGenerator = (function() {
     }
 
     function generate() {
-        var encoder = new GIFEncoder();
-        Display.play(encoder);
+        if(Timeline.segments.length > 0) {
+            document.getElementById("dim-overlay").style.display = "block";
+            var encoder = new GIFEncoder();
+            Display.play(encoder);
+        }
     }
 
     function encode(encoder, frames) {
+        document.getElementById("progress-lbl").innerHTML = "Encoding";
+        var progress_bar = document.getElementById("progress-bar");
+        progress_bar.value = 0;
+        progress_bar.max = frames.length;
+
         console.log(frames.length + " frames captured");
         encoder.setRepeat(0);       // loop until told to stop
         encoder.setDelay(50);       // capture every x ms
@@ -304,16 +352,27 @@ var GifGenerator = (function() {
         encoder.setProperties(true, true); // started, firstFrame
         encoder.start();
 
-        for(var frame of frames)
-        {
-            console.log(encoder.addFrame(frame, true));
-            encoder.setProperties(true, false); // started, firstFrame
+        function finished() {
+            encoder.finish();
+            var binaryGIF = encoder.stream().getData();
+            var dataURL = 'data:image/gif;base64,' + encode64(binaryGIF);
+            document.getElementById("the-gif").setAttribute("src", dataURL);
+            document.getElementById("dim-overlay").style.display = "none";
         }
 
-        encoder.finish();
-        var binaryGIF = encoder.stream().getData();
-        var dataURL = 'data:image/gif;base64,' + encode64(binaryGIF);
-        document.getElementById("the-gif").setAttribute("src", dataURL);
+        var frameIndex = 0;
+        (function loop() {
+            var frame = frames[frameIndex];
+            encoder.addFrame(frame, true);
+            encoder.setProperties(true, false); // started, firstFrame
+            progress_bar.value = frameIndex;
+            frameIndex ++;
+            if(frameIndex < frames.length) {
+                setTimeout(loop, 0);
+            } else {
+                finished();
+            }
+        })();
     }
 
     return { init, encode };
@@ -321,9 +380,9 @@ var GifGenerator = (function() {
 
 // a nice helper function
 // https://stackoverflow.com/questions/38173871/html5-canvas-how-to-border-a-fillrect
-function drawBorderRect(context, xPos, yPos, width, height, borderColor = "#fff", rectColor = "#aaa", thickness = 4) {
-    context.fillStyle = borderColor;
-    context.fillRect(xPos - (thickness), yPos - (thickness), width + (thickness * 2), height + (thickness * 2));
+function drawBorderRect(context, xPos, yPos, width, height, borderColor = "#fff", rectColor = "#aaa", thickness = 6) {
+    //context.fillStyle = borderColor;
+    //context.fillRect(xPos - (thickness), yPos - (thickness), width + (thickness * 2), height + (thickness * 2));
     context.fillStyle = rectColor;
     context.fillRect(xPos, yPos, width, height);
 }

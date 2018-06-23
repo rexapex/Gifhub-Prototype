@@ -5,16 +5,25 @@
     <link rel="stylesheet" type="text/css" href="gifhub.css">
 </head>
 <body>
+    <div id="dim-overlay">
+        <div id="progress-popup" class="center-center">
+            <label id="progress-lbl" class="center-center" style="z-index: 5;"></label>
+            <progress id="progress-bar" class="center-center" value="0" max="100"></progress>
+        </div>
+    </div>
     <div id="titlebar">
-        <h2 id="title">Gifmaker</h2>
-        <button id="gen-gif-btn">Generate GIF</button>
+        <h2 id="title">Gifhub Pre-Pre-Pre-Alpha</h2>
+        <button id="gen-gif-btn" class="titlebar-btn">Generate GIF</button>
+        <!--<button id="home-btn" class="titlebar-btn">Home</button>-->
     </div>
     <div style="height: 60px; width: 100%"></div>
     <canvas id="canvas"></canvas>
     <div id="import-panel">
         <button id="import-button">Import</button>
     </div>
-    <canvas id="timeline"></canvas>
+    <canvas id="timeline">
+        <label id="drop-clips-lbl">Drop Clips Here</label>
+    </canvas>
     <img id="the-gif" style=""><img>
     <script type="text/javascript" src="jsgif/LZWEncoder.js"></script>
     <script type="text/javascript" src="jsgif/NeuQuant.js"></script>
