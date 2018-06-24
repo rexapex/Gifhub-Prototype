@@ -90,18 +90,11 @@ var Display = (function() {
         var currentSegment = 0;
         if(video) {
             var frames = [];
-            // with help from stack overflow
-            // https://stackoverflow.com/questions/4429440/html5-display-video-inside-canvas
-            var scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
-            var left = canvas.width / 2 - (video.videoWidth / 2) * scale;
-            var top = canvas.height / 2 - (video.videoHeight / 2) * scale;
-            video.currentTime = segment.startTime;
-            video.play();
 
-            var doneRecordingCallback;
+            var recorderCallback;
             if(encoder) {
                 // record the newly created video track
-                doneRecordingCallback = record(encoder, frames);
+                recorderCallback = record(encoder, frames);
                 // calculate the total duration of all clips
                 var totalDuration = 0;
                 for(var segment of Timeline.segments) {
@@ -111,6 +104,14 @@ var Display = (function() {
                 document.getElementById("progress-bar").value = 0;
                 document.getElementById("progress-bar").max = Math.floor(totalDuration);
             }
+
+            // with help from stack overflow
+            // https://stackoverflow.com/questions/4429440/html5-display-video-inside-canvas
+            var scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+            var left = canvas.width / 2 - (video.videoWidth / 2) * scale;
+            var top = canvas.height / 2 - (video.videoHeight / 2) * scale;
+            video.currentTime = segment.startTime;
+            video.play();
 
             (function loop() {
                 // if the video has ended or the segment has surpassed its duration
@@ -132,7 +133,7 @@ var Display = (function() {
                     } else {
                         if(encoder) {
                             // notify recorder that recording has finished
-                            doneRecordingCallback();
+                            recorderCallback(false, true);
                             // encode the set of frames recorded to create a gif image
                             GifGenerator.encode(encoder, frames);
                         }
@@ -143,6 +144,7 @@ var Display = (function() {
                     // render the video frame
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(video, left, top, video.videoWidth * scale, video.videoHeight * scale);
+                    recorderCallback(true, false);
 
                     // if the user is mousing over the video, display a pause button over the frame
                     if(showPauseButton) {
@@ -156,12 +158,19 @@ var Display = (function() {
         }
     }
 
-    function record(encoder, frames) {
+    function record(encoder, frames, videoWidth, videoHeight) {
+
+        // sets the resolution as opposed to the screen space used
+        canvas.setAttribute("width", "400px");
+        canvas.setAttribute("height", "225px");
+        encoder.setQuality(20);
+
         var finishedRecording;
+        var startedRecording;
         frames.length = 0;
         var recordingStartTime = performance.now();
 
-        (function loop() {
+        function loop() {
             var startTime = performance.now();
             frames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
 
@@ -172,11 +181,22 @@ var Display = (function() {
             if(!finishedRecording) {
                 setTimeout(loop, 50 - timeElapsed);
             }
-        })();
+        }
 
         // return a callback to be called when video has ended
-        return function() {
-            finishedRecording = true;
+        return function(startedRecording_, finishedRecording_) {
+            finishedRecording = finishedRecording_;
+
+            if(startedRecording_ && !startedRecording) {
+                startedRecording = startedRecording_;
+                loop();
+            }
+
+            if(finishedRecording) {
+                // sets the resolution as opposed to the screen space used
+                canvas.setAttribute("width", "1366px");
+                canvas.setAttribute("height", "768px");
+            }
         }
     }
 
@@ -278,7 +298,7 @@ var Timeline = (function() {
             var height = imgHeight/2;
 
             var color;
-            console.log(offsetX, offsetX + rectLength, y, y + height)
+            //console.log(offsetX, offsetX + rectLength, y, y + height)
             if(mousex > offsetX && mousex < offsetX + rectLength &&
                 mousey > y && mousey < y + height) {
                 color = mousedown ? activeColor : hoverColor;
@@ -313,12 +333,12 @@ var Timeline = (function() {
     }
 
     function mouseMove(e) {
-        console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
     }
 
     function mouseDown(e) {
-        console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
     }
 
@@ -355,9 +375,29 @@ var GifGenerator = (function() {
         function finished() {
             encoder.finish();
             var binaryGIF = encoder.stream().getData();
-            var dataURL = 'data:image/gif;base64,' + encode64(binaryGIF);
-            document.getElementById("the-gif").setAttribute("src", dataURL);
+            var base64 = encode64(binaryGIF);
+            upload(base64);
+        //    document.getElementById("the-gif").setAttribute("src", "data:image/gif;base64," + base64);
             document.getElementById("dim-overlay").style.display = "none";
+        }
+
+        function upload(dataURL) {
+            progress_bar.innerHTML = "Uploading";
+            progress_bar.value = 0;
+            progress_bar.max = 4;
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = function() {
+                progress_bar.value = xmlHttp.readyState;
+
+                // once upload has finished, navigate to gif location
+                if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+                    var gifID = JSON.parse(xmlHttp.responseText).id;
+                    window.location.assign("/gif/" + gifID + ".gif");
+                }
+            }
+            xmlHttp.open("POST", "/upload", true);   // true for asynchronous
+            xmlHttp.setRequestHeader("Content-type", "application/json");
+            xmlHttp.send(JSON.stringify({ img: dataURL }));
         }
 
         var frameIndex = 0;
@@ -389,3 +429,8 @@ function drawBorderRect(context, xPos, yPos, width, height, borderColor = "#fff"
 
 main();
 })();
+
+// navigate to the home page
+function navToHome() {
+    window.location.assign("../home-page/home.html");
+}

@@ -2,13 +2,14 @@
 <html>
 <head>
     <title>GifHub</title>
-    <link rel="stylesheet" type="text/css" href="gifhub.css">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+    <link rel="stylesheet" type="text/css" href="create.css">
 </head>
 <body>
     <div id="dim-overlay">
         <div id="progress-popup" class="center-center">
             <label id="progress-lbl" class="center-center" style="z-index: 5;"></label>
-            <progress id="progress-bar" class="center-center" value="0" max="100"></progress>
+            <progress id="progress-bar" class="center-center" style="width: 80%; height: auto;"></progress>
         </div>
     </div>
     <div id="titlebar">
@@ -25,15 +26,10 @@
         <label id="drop-clips-lbl">Drop Clips Here</label>
     </canvas>
     <img id="the-gif" style=""><img>
-    <script type="text/javascript" src="jsgif/LZWEncoder.js"></script>
-    <script type="text/javascript" src="jsgif/NeuQuant.js"></script>
-    <script type="text/javascript" src="jsgif/GIFEncoder.js"></script>
-    <script type="text/javascript" src="jsgif/b64.js"></script>
-    <script type="text/javascript" src="gifhub.js"></script>
-    <script>
-        function navToHome() {
-            window.location.assign("home.html");
-        }
-    </script>
+    <script type="text/javascript" src="../../jsgif/LZWEncoder.js"></script>
+    <script type="text/javascript" src="../../jsgif/NeuQuant.js"></script>
+    <script type="text/javascript" src="../../jsgif/GIFEncoder.js"></script>
+    <script type="text/javascript" src="../../jsgif/b64.js"></script>
+    <script type="text/javascript" src="create.js"></script>
 </body>
 </html>

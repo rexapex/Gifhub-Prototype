@@ -1,0 +1,67 @@
+body {
+    background-color: #555555;
+}
+
+#titlebar {
+    height: 60px;
+    width: 100%;
+
+    background-color: #999;
+    z-index: 0;
+
+    top: 0;
+    left: 0;
+    padding-top: 0;
+    position: fixed;
+    margin: 0;
+    display: inline-block;
+}
+
+#title {
+    display: inline;
+    vertical-align: middle;
+    float: left;
+    margin-left: 25px;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff
+}
+
+.titlebar-btn {
+    display: inline;
+    vertical-align: middle;
+    float: right;
+    margin-right: 25px;
+
+    /*border: 2px solid #aaaaaa;*/
+    border: none;
+    background-color: #666;
+
+    cursor: default;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff
+}
+
+.titlebar-btn:hover {
+    color: #77bbff;
+    cursor: pointer;
+}
+
+.titlebar-btn:active {
+    color: #77ffbb;
+}
+
+.center-center {
+    /* center horizontally and vertically */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
