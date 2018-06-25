@@ -26,8 +26,8 @@ function initCanvas() {
     // time canvas and context
     timelineCanvas = document.getElementById("timeline");
     timelineCtx = timelineCanvas.getContext("2d");
-    timelineCanvas.setAttribute("width", "2732px");
-    timelineCanvas.setAttribute("height", "768px");
+    timelineCanvas.setAttribute("width", timelineCanvas.clientWidth);
+    timelineCanvas.setAttribute("height", timelineCanvas.clientHeight);
 }
 
 function initImportPanel() {
@@ -268,7 +268,13 @@ var Timeline = (function() {
         timelineCanvas.ondrop = drop;
         timelineCanvas.onmousemove = mouseMove;
         timelineCanvas.onclick = mouseDown;
+        timelineCanvas.onmouseup = mouseUp;
+        timelineCanvas.onresize = onResize; // TODO - doesn't work, use window resize instead
         refresh();
+    }
+
+    function update(mousex, mousy, mousedown) {
+        
     }
 
     function refresh(mousex, mousey, mousedown) {
@@ -301,12 +307,22 @@ var Timeline = (function() {
             //console.log(offsetX, offsetX + rectLength, y, y + height)
             if(mousex > offsetX && mousex < offsetX + rectLength &&
                 mousey > y && mousey < y + height) {
-                color = mousedown ? activeColor : hoverColor;
+                // draw 3 rectangle, 2 indicating the edges which can be pressed
+                edgeColor = mousedown ? activeColor : hoverColor;
+                middleColor = colors[segmentIndex % colors.length];
+
+                // draw the middle rectangle
+                drawBorderRect(timelineCtx, offsetX + (rectLength*0.1), y, rectLength * 0.8, height, "#fff", middleColor);
+
+                // draw the edge rectangles
+                drawBorderRect(timelineCtx, offsetX, y, rectLength * 0.1, height, "#fff", edgeColor);
+                drawBorderRect(timelineCtx, offsetX + (rectLength*0.9), y, rectLength * 0.1, height, "#fff", edgeColor);
             } else {
-                 color = colors[segmentIndex % colors.length];
+                // draw one continuous rectangle for the clip
+                color = colors[segmentIndex % colors.length];
+                drawBorderRect(timelineCtx, offsetX, y, rectLength, height, "#fff", color);
             }
 
-            drawBorderRect(timelineCtx, offsetX, y, rectLength, height, "#fff", color);
             //timelineCtx.drawImage(video, rectLength/2-imgWidth/2, timelineCanvas.height/2-imgHeight/2, imgWidth, imgHeight);
 
             offsetX += rectLength;
@@ -340,6 +356,14 @@ var Timeline = (function() {
     function mouseDown(e) {
         //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+    }
+
+    function mouseUp(e) {
+        refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+    }
+
+    function onResize(e) {
+        console.log("resized")
     }
 
     return { init, segments, refresh };

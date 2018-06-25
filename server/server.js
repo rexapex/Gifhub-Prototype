@@ -5,7 +5,7 @@ const fs = require("fs");
 const app = express();
 const port = 80;
 
-app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.json({ limit: "150mb" }));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use("/static", express.static("../static"));
 app.use("/jsgif", express.static("../jsgif"));
@@ -25,6 +25,7 @@ function base64Encode(file, callback) {
 }
 
 app.post("/upload", function(req, resp) {
+    console.log(req.body);
     var img = req.body.img;
     var id = crypto.randomBytes(20).toString("hex");
     fs.writeFile("../db/" + id + ".gif", img, "base64", function(err) {
