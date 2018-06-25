@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const crypto = require("crypto");
 const fs = require("fs");
 const app = express();
-const port = 61740;
+const port = 80;
 
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({extended: true}));
