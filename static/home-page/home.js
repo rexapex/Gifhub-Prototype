@@ -16,6 +16,8 @@
                 if(callback) {
                     callback(JSON.parse(xmlHttp.responseText).files);
                 }
+            } else {
+                console.log(xmlHttp.responseText);
             }
         }
         xmlHttp.open("GET", "/gifs", true);   // true for asynchronous

@@ -274,7 +274,7 @@ var Timeline = (function() {
     }
 
     function update(mousex, mousy, mousedown) {
-        
+
     }
 
     function refresh(mousex, mousey, mousedown) {
@@ -363,7 +363,7 @@ var Timeline = (function() {
     }
 
     function onResize(e) {
-        console.log("resized")
+        console.log("resized");
     }
 
     return { init, segments, refresh };
@@ -417,6 +417,8 @@ var GifGenerator = (function() {
                 if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
                     var gifID = JSON.parse(xmlHttp.responseText).id;
                     window.location.assign("/gif/" + gifID + ".gif");
+                } else {
+                    console.log(xmlHttp.responseText);
                 }
             }
             xmlHttp.open("POST", "/upload", true);   // true for asynchronous

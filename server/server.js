@@ -39,7 +39,7 @@ app.post("/upload", function(req, resp) {
 });
 
 app.get("/gifs", function(req, resp) {
-    fs.readdir("../db", function(err, files) {
+    fs.readdir("../db/", function(err, files) {
         if(err) {
             resp.status(400).send({ "error": err });
         } else {
