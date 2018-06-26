@@ -406,11 +406,9 @@ var GifGenerator = (function() {
             var base64 = encode64(binaryGIF);
             upload(base64);
         //    document.getElementById("the-gif").setAttribute("src", "data:image/gif;base64," + base64);
-            document.getElementById("dim-overlay").style.display = "none";
         }
 
         function upload(dataURL) {
-            console.log("uploading");
             progress_bar.innerHTML = "Uploading";
             progress_bar.value = 0;
             progress_bar.max = 4;
@@ -419,17 +417,25 @@ var GifGenerator = (function() {
                 progress_bar.value = xmlHttp.readyState;
 
                 // once upload has finished, navigate to gif location
-                if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
-                    console.log("finished uploading");
-                    var gifID = JSON.parse(xmlHttp.responseText).id;
-                    window.location.assign("/gif/" + gifID + ".gif");
+                if(xmlHttp.readyState == 4) {
+                    if(xmlHttp.status == 200) {
+                        console.log("finished uploading");
+                        var gifID = JSON.parse(xmlHttp.responseText).id;
+                        window.location.assign("/gif/" + gifID + ".gif");
+                    } else {
+                        console.log("upload failed");
+                    }
+                    document.getElementById("dim-overlay").style.display = "none";
                 } else {
                     console.log(xmlHttp.responseText);
+                    document.getElementById("dim-overlay").style.display = "none";
                 }
             }
+            console.log("uploading");
             xmlHttp.open("POST", "/upload", true);   // true for asynchronous
             xmlHttp.setRequestHeader("Content-type", "application/json");
             xmlHttp.send(JSON.stringify({ img: dataURL }));
+            console.log("sent upload request");
         }
 
         console.log("encoding");
