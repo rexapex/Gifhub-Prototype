@@ -409,7 +409,7 @@ var GifGenerator = (function() {
         }
 
         function upload(dataURL) {
-            progress_bar.innerHTML = "Uploading";
+            document.getElementById("progress-lbl").innerHTML = "Uploading";
             progress_bar.value = 0;
             progress_bar.max = 4;
             var xmlHttp = new XMLHttpRequest();
@@ -428,7 +428,6 @@ var GifGenerator = (function() {
                     document.getElementById("dim-overlay").style.display = "none";
                 } else {
                     console.log(xmlHttp.responseText);
-                    document.getElementById("dim-overlay").style.display = "none";
                 }
             }
             console.log("uploading");
