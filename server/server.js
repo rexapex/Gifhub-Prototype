@@ -18,7 +18,7 @@ if(!fs.existsSync(absPath("../db"))) {
 
 // prepend necessary crap to front to form an absolute path
 function absPath(path) {
-    return typeof(path) === "string" ? __dirname + path : null;
+    return typeof(path) === "string" ? __dirname + "/" + path : null;
 }
 
 // http://www.hacksparrow.com/base64-encoding-decoding-in-node-js.html
