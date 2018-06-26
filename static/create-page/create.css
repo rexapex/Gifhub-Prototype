@@ -1,3 +1,8 @@
+#gen-gif-btn {
+    background-color: #fff;
+    color: #666;
+    height: 65%;
+}
 
 #canvas {
     float: left;

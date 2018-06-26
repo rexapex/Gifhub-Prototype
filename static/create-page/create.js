@@ -13,6 +13,9 @@ function main() {
     Display.init();
     Timeline.init();
     GifGenerator.init();
+    window.addEventListener("resize", function() {
+        Timeline.resize();
+    }, true);
 }
 
 function initCanvas() {
@@ -266,18 +269,39 @@ var Timeline = (function() {
     // references to imported videos with extra data for start time and duration
     var segments = [];
 
+    // update variables
+    var mouseDownLastUpdate = false;
+    var draggingLeftEdge = false;
+    var draggingRightEdge = false;
+    var segmentBeingEdited = null;
+
     function init() {
         timelineCanvas.ondragover = allowDrop;
         timelineCanvas.ondrop = drop;
         timelineCanvas.onmousemove = mouseMove;
-        timelineCanvas.onclick = mouseDown;
+        timelineCanvas.onmousedown = mouseDown;
         timelineCanvas.onmouseup = mouseUp;
-        timelineCanvas.onresize = onResize; // TODO - doesn't work, use window resize instead
         refresh();
     }
 
-    function update(mousex, mousy, mousedown) {
+    function updateClip(mousex, mousy, mousedown, edge1x, edge2x, edgeLength, edgey, edgeHeight, currentSegment) {
+        if(!mousedown) {
+            draggingLeftEdge = false;
+            draggingRightEdge = false;
+            segmentBeingEdited = null;
+            return false;
+        }
 
+        // if the user is dragging the left edge...
+        if((mousex < edge1x + edgeLength) || draggingLeftEdge && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+            draggingLeftEdge = true;
+            segmentBeingEdited = currentSegment;
+        }
+        // else, if the user is dragging the right edge...
+        else((mousex > edge2x) || draggingRightEdge && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+            draggingRightEdge = true;
+            segmentBeingEdited = currentSegment;
+        }
     }
 
     function refresh(mousex, mousey, mousedown) {
@@ -308,18 +332,23 @@ var Timeline = (function() {
 
             var color;
             //console.log(offsetX, offsetX + rectLength, y, y + height)
-            if(mousex > offsetX && mousex < offsetX + rectLength &&
-                mousey > y && mousey < y + height) {
+            if(mousex > offsetX && mousex < offsetX + rectLength && mousey > y && mousey < y + height) {
+                // determine position of edge rectangles
+                var edge1x = offsetX;
+                var edge2x = offsetX + (rectLength * 0.9);
+                var edgeLength = rectLength * 0.1;
+
+                var updating = updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, y, height, segment);
+
                 // draw 3 rectangle, 2 indicating the edges which can be pressed
-                edgeColor = mousedown ? activeColor : hoverColor;
                 middleColor = colors[segmentIndex % colors.length];
 
                 // draw the middle rectangle
-                drawBorderRect(timelineCtx, offsetX + (rectLength*0.1), y, rectLength * 0.8, height, "#fff", middleColor);
+                drawBorderRect(timelineCtx, offsetX + edgeLength, y, rectLength * 0.8, height, "#fff", middleColor);
 
                 // draw the edge rectangles
-                drawBorderRect(timelineCtx, offsetX, y, rectLength * 0.1, height, "#fff", edgeColor);
-                drawBorderRect(timelineCtx, offsetX + (rectLength*0.9), y, rectLength * 0.1, height, "#fff", edgeColor);
+                drawBorderRect(timelineCtx, edge1x, y, edgeLength, height, "#fff", updating === 1 ? activeColor : hoverColor);
+                drawBorderRect(timelineCtx, edge2x, y, edgeLength, height, "#fff", updating === 2 ? activeColor : hoverColor);
             } else {
                 // draw one continuous rectangle for the clip
                 color = colors[segmentIndex % colors.length];
@@ -353,23 +382,27 @@ var Timeline = (function() {
 
     function mouseMove(e) {
         //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
-        refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, mouseDownLastUpdate);
     }
 
     function mouseDown(e) {
         //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+        mouseDownLastUpdate = true;
     }
 
     function mouseUp(e) {
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+        mouseDownLastUpdate = false;
     }
 
-    function onResize(e) {
-        console.log("resized");
+    function resize() {
+        timelineCanvas.setAttribute("width", timelineCanvas.clientWidth);
+        timelineCanvas.setAttribute("height", timelineCanvas.clientHeight);
+        refresh();
     }
 
-    return { init, segments, refresh };
+    return { init, segments, refresh, resize };
 })();
 
 var GifGenerator = (function() {
@@ -405,7 +438,6 @@ var GifGenerator = (function() {
             var binaryGIF = encoder.stream().getData();
             var base64 = encode64(binaryGIF);
             upload(base64);
-        //    document.getElementById("the-gif").setAttribute("src", "data:image/gif;base64," + base64);
         }
 
         function upload(dataURL) {
