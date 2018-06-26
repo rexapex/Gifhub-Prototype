@@ -144,7 +144,10 @@ var Display = (function() {
                     // render the video frame
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(video, left, top, video.videoWidth * scale, video.videoHeight * scale);
-                    recorderCallback(true, false);
+
+                    if(encoder) {
+                        recorderCallback(true, false);
+                    }
 
                     // if the user is mousing over the video, display a pause button over the frame
                     if(showPauseButton) {
@@ -397,6 +400,7 @@ var GifGenerator = (function() {
         encoder.start();
 
         function finished() {
+            console.log("finished encoding");
             encoder.finish();
             var binaryGIF = encoder.stream().getData();
             var base64 = encode64(binaryGIF);
@@ -406,6 +410,7 @@ var GifGenerator = (function() {
         }
 
         function upload(dataURL) {
+            console.log("uploading");
             progress_bar.innerHTML = "Uploading";
             progress_bar.value = 0;
             progress_bar.max = 4;
@@ -415,6 +420,7 @@ var GifGenerator = (function() {
 
                 // once upload has finished, navigate to gif location
                 if(xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+                    console.log("finished uploading");
                     var gifID = JSON.parse(xmlHttp.responseText).id;
                     window.location.assign("/gif/" + gifID + ".gif");
                 } else {
@@ -425,6 +431,8 @@ var GifGenerator = (function() {
             xmlHttp.setRequestHeader("Content-type", "application/json");
             xmlHttp.send(JSON.stringify({ img: dataURL }));
         }
+
+        console.log("encoding");
 
         var frameIndex = 0;
         (function loop() {

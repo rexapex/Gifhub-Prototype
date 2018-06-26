@@ -25,6 +25,7 @@ function base64Encode(file, callback) {
 }
 
 app.post("/upload", function(req, resp) {
+    console.log("Upload");
     console.log(req.body);
     var img = req.body.img;
     var id = crypto.randomBytes(20).toString("hex");
@@ -33,6 +34,7 @@ app.post("/upload", function(req, resp) {
             console.log(err);
             resp.status(400).send({ "error": err });
         } else {
+            console.log("uploaded gif " + id);
             resp.status(200).send({ "id": id });
         }
     });
