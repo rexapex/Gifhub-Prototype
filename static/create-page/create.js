@@ -293,12 +293,12 @@ var Timeline = (function() {
         }
 
         // if the user is dragging the left edge...
-        if((mousex < edge1x + edgeLength) || draggingLeftEdge && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+        if((mousex < edge1x + edgeLength || draggingLeftEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingLeftEdge = true;
             segmentBeingEdited = currentSegment;
         }
         // else, if the user is dragging the right edge...
-        else((mousex > edge2x) || draggingRightEdge && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+        else if((mousex > edge2x || draggingRightEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingRightEdge = true;
             segmentBeingEdited = currentSegment;
         }
