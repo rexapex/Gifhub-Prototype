@@ -75,12 +75,54 @@
     color: #77ffbb;
 }
 
+.video-loading {
+    width: 200px;
+    height: 112.5px;
+    max-width: 200px;
+    margin: 5px;
+    background-color: #444;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.video-error {
+    width: 200px;
+    height: 112.5px;
+    max-width: 200px;
+    margin: 5px;
+    background-color: #444;
+    display: inline-block;
+    vertical-align: middle;
+
+    /* text font */
+    font-style: normal;
+    font-size: 24px;
+    font-family: Calibri, Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
+    color: #fff;
+}
+
 .video-preview {
     width: 200px;
     height: auto;
     margin: 5px;
     display: inline;
     vertical-align: middle;
+
+    -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+    -moz-box-sizing: border-box;    /* Firefox, other Gecko */
+    box-sizing: border-box;         /* Opera/IE 8+ */
+
+    border: 2px solid transparent;
+}
+
+.video-preview:hover {
+    border: 2px solid #77bbff;
+    cursor: pointer;
+}
+
+.video-preview:active {
+    border: 2px solid #77ffbb;
+    cursor: pointer;
 }
 
 #timeline {

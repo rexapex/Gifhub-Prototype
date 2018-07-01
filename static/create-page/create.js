@@ -50,14 +50,59 @@ var Importer = (function() {
             if(fileSelector.files && fileSelector.files[0] && !document.getElementById(fileSelector.value)) {
                 var reader = new FileReader();
 
-                reader.onload = function(e) {
-                    video = document.createElement("video");
-                    video.src = e.target.result;
-                    video.className += "video-preview";
+                // create an empty video element
+                var video = document.createElement("video");
+                video.classList.add("video-preview");
+
+                // create a video substitute during loading
+                var loadDiv = document.createElement("div");
+                loadDiv.classList.add("video-loading");
+                document.getElementById("import-panel").insertBefore(loadDiv, document.getElementById("import-panel").lastChild.nextSibling);
+
+                // add a progress bar over the video element to show the progress of loading
+                var progressBar = document.createElement("progress");
+                progressBar.classList.add("center-center");
+                progressBar.max = 1;
+                progressBar.value = 0;
+                loadDiv.appendChild(progressBar);
+
+                // update the progress bar as the file is loaded
+                reader.onprogress = function(e) {
+                    if(e.lengthComputable) {
+                        progressBar.max = e.total;
+                        progressBar.value = e.loaded;
+                    }
+                }
+
+                // load the video from local storage into browser memory
+                reader.onloadend = function(e) {
+                    if(e.target.error) {
+                        video.classList.remove("video-loading");
+                        video.classList.add("video-error");
+                    } else {
+                        video.src = e.target.result;
+                    }
+                }
+
+                // if the video errors, display an error message
+                // TODO - ensure this is correct event and is fired correctly
+                video.onerror = function() {
+                    progressBar.remove();
+                    loadDiv.classList.remove("video-loading");
+                    loadDiv.classList.add("video-error");
+
+                    var errorMsg = document.createElement("label");
+                    errorMsg.innerHTML = "Error";
+                    errorMsg.classList.add("text-center-center");
+                    loadDiv.appendChild(errorMsg);
+                }
+
+                // load the video from browser memory into an html5 video element
+                video.onloadeddata = function() {
+                    loadDiv.remove();
                     video.setAttribute("id", fileSelector.value);
                     video.setAttribute("draggable", true);
                     video.ondragstart = drag;
-                    //video.setAttribute("loop", true);
                     document.getElementById("import-panel").insertBefore(video, document.getElementById("import-panel").lastChild.nextSibling);
                     videos.push(video);
                 }
@@ -69,6 +114,10 @@ var Importer = (function() {
 
     function drag(ev) {
         ev.dataTransfer.setData("text", ev.target.id);
+    }
+
+    function dragEnd(ev) {
+        
     }
 
     document.getElementById("import-button").onclick = importVideo;

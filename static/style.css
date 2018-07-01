@@ -60,8 +60,13 @@ body {
 
 .center-center {
     /* center horizontally and vertically */
-    position: absolute;
+    position: relative;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+}
+
+.text-center-center {
+    text-align: center;
+    vertical-align: middle;
 }
