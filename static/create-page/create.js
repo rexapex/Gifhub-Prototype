@@ -150,7 +150,7 @@ var Display = (function() {
             var length = segment_.endTime - segment_.startTime;
             var totalDurationNow = length + totalDurationSoFar;
             // if true, the time falls under this segment
-            if(time < totalDurationNow && !segment) {
+            if(time <= totalDurationNow && !segment) {
                 // calculate the correct segment time
                 var segmentTime = time - totalDurationSoFar;
                 segment = segment_;
@@ -207,6 +207,13 @@ var Display = (function() {
                             recorderCallback(false, true);
                             // encode the set of frames recorded to create a gif image
                             GifGenerator.encode(encoder, frames);
+                        } else {
+                            // set the current time back to the start
+                            Timeline.setCurrentTime(0);
+                            playing = false;
+                            showPauseButton = false;
+                            drawFrame(Timeline.getCurrentTime());
+                            drawPlayButton();
                         }
                     }
                 }
@@ -363,7 +370,6 @@ var Display = (function() {
 
     function onMouseLeave() {
         showPauseButton = false;
-//        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     return { init, play, pause, drawFrame };
@@ -384,6 +390,9 @@ var Timeline = (function() {
     var draggingTimeMarker = false;
     var drawFrameCooldown = 0;
 
+    // mouse co-ordinates on last update
+    var prevMousex = 0, prevMousey = 0;
+
     function init() {
         timelineCanvas.ondragover = allowDrop;
         timelineCanvas.ondrop = drop;
@@ -394,28 +403,55 @@ var Timeline = (function() {
         refresh();
     }
 
-    function updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, edgey, edgeHeight, currentSegment) {
+    function updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, edgey, edgeHeight, currentSegment, cumulativeDuration) {
         if(!mousedown) {
             draggingLeftEdge = false;
             draggingRightEdge = false;
             segmentBeingEdited = null;
-            return false;
+            return 0;
         }
+
+        var returnVal = 0;
 
         // if the user is dragging the left edge...
         if(((mousex > edge1x && mousex < edge1x + edgeLength && mousey > edgey && mousey < edgey + edgeHeight) ||
                 draggingLeftEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingLeftEdge = true;
             segmentBeingEdited = currentSegment;
-            return 1;
+            returnVal = 1;
         }
         // else, if the user is dragging the right edge...
         else if(((mousex > edge2x && mousex < edge2x + edgeLength && mousey > edgey && mousey < edgey + edgeHeight) ||
                 draggingRightEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingRightEdge = true;
             segmentBeingEdited = currentSegment;
-            return 2;
+            returnVal = 2;
         }
+
+        // calculate the amount the mouse has moved in the x-axis since last update
+        var dx = mousex - prevMousex;
+
+        // if dragging the left edge, update the start time based on direction moved
+        if(draggingLeftEdge && segmentBeingEdited === currentSegment) {
+            var ratio = dx / edgeLength * 10;   // calculate ratio of movement to full rect length
+            segmentBeingEdited.startTime += dx * segmentBeingEdited.video.duration / 1000;
+            segmentBeingEdited.startTime = segmentBeingEdited.startTime < 0 ? 0
+                                            : segmentBeingEdited.startTime > segmentBeingEdited.endTime
+                                            ? segmentBeingEdited.endTime : segmentBeingEdited.startTime;
+            currentTime = cumulativeDuration;
+        }
+
+        // if dragging the right edge, update the end time based on direction moved
+        if(draggingRightEdge && segmentBeingEdited === currentSegment) {
+            var ratio = dx / edgeLength * 10;   // calculate ratio of movement to full rect length
+            segmentBeingEdited.endTime -= dx * segmentBeingEdited.video.duration / 1000;
+            segmentBeingEdited.endTime = segmentBeingEdited.endTime < segmentBeingEdited.startTime ? segmentBeingEdited.startTime
+                                            : segmentBeingEdited.endTime > segmentBeingEdited.video.duration
+                                            ? segmentBeingEdited.video.duration : segmentBeingEdited.endTime;
+            currentTime = cumulativeDuration + segmentBeingEdited.endTime - segmentBeingEdited.startTime - 0.01;
+        }
+
+        return returnVal;
     }
 
     function refresh(mousex, mousey, mousedown) {
@@ -443,7 +479,7 @@ var Timeline = (function() {
 
         // determine whether the time marker is selected
         if(mousex > timeMarkerX-timeMarkerWidth && mousex < timeMarkerX+timeMarkerWidth*3 &&
-                mousey > timeMarkerY && mousey < timeMarkerY + timeMarkerHeight) {
+                mousey > timeMarkerY && mousey < timeMarkerY + timeMarkerHeight && !draggingLeftEdge && !draggingRightEdge) {
             hoveringTimeMarker = true;
 
             if(mousedown) {
@@ -457,12 +493,22 @@ var Timeline = (function() {
             draggingTimeMarker = false;
         }
 
+        if(draggingTimeMarker) {
+            // move the marker to the current mouse position...
+            // ...so long as it remains within bounds of timeline
+            currentTime = (mousex - initialOffsetX) * totalDuration / (timelineCanvas.width - initialOffsetX*2);
+            currentTime = currentTime > totalDuration ? totalDuration : currentTime < 0 ? 0 : currentTime;
+        }
+
+        var cumulativeDuration = 0;
+
+        // update and draw each segment's rectangle(s)
         for(var segmentIndex in segments) {
             var segment = segments[segmentIndex];
             var imgHeight = timelineCanvas.height * 0.5;
             //var imgWidth = Math.floor(imgHeight * 16 / 9);
             var imgWidth = 200;
-            var rectLength = Math.floor(segment.video.duration / totalDuration * (timelineCanvas.width - initialOffsetX*2));
+            var rectLength = Math.floor((segment.endTime - segment.startTime) / totalDuration * (timelineCanvas.width - initialOffsetX*2));
 
             // calculate the co-ordinates and dimensions of the rectangle
             var y = timelineCanvas.height/2-imgHeight/4;
@@ -476,8 +522,12 @@ var Timeline = (function() {
             // determine whether one of the segments edges is being updated
             var updating = 0;
             if(!hoveringTimeMarker && !draggingTimeMarker) {
-                updating = updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, y, height, segment);
+                updating = updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, y, height, segment, cumulativeDuration);
+                timeMarkerX = initialOffsetX + currentTime / totalDuration * (timelineCanvas.width - initialOffsetX*2);
+                console.log(currentTime, timeMarkerX);
             }
+
+            cumulativeDuration += segment.endTime - segment.startTime;
 
             // only draw 3 rectangle if the user isn't hovering/dragging the time marker, etc...
             if((!hoveringTimeMarker && !draggingTimeMarker) && (updating > 0 ||
@@ -501,8 +551,6 @@ var Timeline = (function() {
                 timelineCtx.fillRect(offsetX, y, rectLength, height);
             }
 
-            //timelineCtx.drawImage(video, rectLength/2-imgWidth/2, timelineCanvas.height/2-imgHeight/2, imgWidth, imgHeight);
-
             offsetX += rectLength;
         }
 
@@ -510,14 +558,14 @@ var Timeline = (function() {
         timelineCtx.fillStyle = draggingTimeMarker ? activeColor : hoveringTimeMarker ? hoverColor : "#fff";
         timelineCtx.fillRect(timeMarkerX, timeMarkerY, timeMarkerWidth, timeMarkerHeight);
 
-        if(draggingTimeMarker && drawFrameCooldown === 0) {
+        if((draggingTimeMarker || draggingLeftEdge || draggingRightEdge) && drawFrameCooldown === 0) {
             Display.drawFrame(currentTime);
-            drawFrameCooldown = 100;
+            drawFrameCooldown = 10;
         }
 
         // having a cooldown stops flickering
         if(drawFrameCooldown > 0) {
-            drawFrameCooldown = 100;
+            drawFrameCooldown --;
         }
     }
 
@@ -554,17 +602,23 @@ var Timeline = (function() {
     function mouseMove(e) {
         //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, mouseDownLastUpdate);
+        prevMousex = e.pageX - this.offsetLeft;
+        prevMousey = e.pageY - this.offsetTop;
     }
 
     function mouseDown(e) {
         //console.log(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
         mouseDownLastUpdate = true;
+        prevMousex = e.pageX - this.offsetLeft;
+        prevMousey = e.pageY - this.offsetTop;
     }
 
     function mouseUp(e) {
         refresh(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         mouseDownLastUpdate = false;
+        prevMousex = e.pageX - this.offsetLeft;
+        prevMousey = e.pageY - this.offsetTop;
     }
 
     function mouseLeave(e) {
