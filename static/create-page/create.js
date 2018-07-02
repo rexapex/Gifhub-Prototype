@@ -117,7 +117,7 @@ var Importer = (function() {
     }
 
     function dragEnd(ev) {
-        
+
     }
 
     document.getElementById("import-button").onclick = importVideo;
@@ -137,9 +137,29 @@ var Display = (function() {
 
     function play(encoder) {
         playing = true;
-        var segment = Timeline.segments.length > 0 ? Timeline.segments[0] : null;
-        var video = segment ? segment.video : null;
-        var currentSegment = 0;
+        var time = encoder ? 0 : Timeline.getCurrentTime();
+        var segment, video;
+        var currentSegment;
+
+        // calculate the total duration of all clips
+        var totalDuration = 0;
+        var totalDurationSoFar = 0;
+        for(var segmentIndex in Timeline.segments) {
+            var segment_ =  Timeline.segments[segmentIndex];
+            totalDuration += segment_.endTime - segment_.startTime;
+            var length = segment_.endTime - segment_.startTime;
+            var totalDurationNow = length + totalDurationSoFar;
+            // if true, the time falls under this segment
+            if(time < totalDurationNow && !segment) {
+                // calculate the correct segment time
+                var segmentTime = time - totalDurationSoFar;
+                segment = segment_;
+                video = segment_.video;
+                video.currentTime = segment_.startTime + segmentTime;
+                currentSegment = segmentIndex;
+            }
+        }
+
         if(video) {
             var frames = [];
 
@@ -147,14 +167,10 @@ var Display = (function() {
             if(encoder) {
                 // record the newly created video track
                 recorderCallback = record(encoder, frames);
-                // calculate the total duration of all clips
-                var totalDuration = 0;
-                for(var segment of Timeline.segments) {
-                    totalDuration += segment.endTime - segment.startTime;
-                }
                 document.getElementById("progress-lbl").innerHTML = "Recording";
                 document.getElementById("progress-bar").value = 0;
                 document.getElementById("progress-bar").max = Math.floor(totalDuration);
+                video.currentTime = segment.startTime;
             }
 
             // with help from stack overflow
@@ -162,8 +178,10 @@ var Display = (function() {
             var scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
             var left = canvas.width / 2 - (video.videoWidth / 2) * scale;
             var top = canvas.height / 2 - (video.videoHeight / 2) * scale;
-            video.currentTime = segment.startTime;
             video.play();
+
+            // the time accumulated from finished clips
+            var accumulatedTime = 0;
 
             (function loop() {
                 // if the video has ended or the segment has surpassed its duration
@@ -173,6 +191,7 @@ var Display = (function() {
                     // try to get the next video
                     currentSegment ++;
                     if(Timeline.segments.length > currentSegment) {
+                        accumulatedTime += segment.endTime - segment.startTime;
                         segment = Timeline.segments[currentSegment];
                         video = segment.video;
                         // with help from stack overflow
@@ -206,10 +225,42 @@ var Display = (function() {
                         drawPauseButton();
                     }
 
+                    // set the current time of the timeline so the marker updates
+                    Timeline.setCurrentTime(accumulatedTime + video.currentTime - segment.startTime);
+
                     // wait until next render frame
                     requestAnimationFrame(loop);
                 }
             })();
+        }
+    }
+
+    function drawFrame(time) {
+        var totalDurationSoFar = 0;
+
+        // determine which segment the time falls under
+        for(var segment of Timeline.segments) {
+            var length = segment.endTime - segment.startTime;
+            var totalDurationNow = length + totalDurationSoFar;
+
+            // if true, the time falls under this segment
+            if(time < totalDurationNow) {
+                // calculate the correct segment time
+                var segmentTime = time - totalDurationSoFar;
+                var video = segment.video;
+                video.currentTime = segment.startTime + segmentTime;
+
+                // with help from stack overflow
+                // https://stackoverflow.com/questions/4429440/html5-display-video-inside-canvas
+                var scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+                var left = canvas.width / 2 - (video.videoWidth / 2) * scale;
+                var top = canvas.height / 2 - (video.videoHeight / 2) * scale;
+
+                // render the video frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, left, top, video.videoWidth * scale, video.videoHeight * scale);
+                break;
+            }
         }
     }
 
@@ -256,9 +307,10 @@ var Display = (function() {
     }
 
     function pause() {
-        var video = Importer.videos.length > 0 ? Importer.videos[0] : null;
-        if(video) {
-            video.pause();
+        for(var segment of Timeline.segments) {
+            if(segment.video) {
+                segment.video.pause();
+            }
         }
     }
 
@@ -285,16 +337,19 @@ var Display = (function() {
 
     function onMouseClick() {
         // only called on left click
-        if(playing) {
-            playing = false;
-            showPauseButton = false;
-            drawPlayButton();
-            pause();
-        } else {
-            playing = true;
-            showPauseButton = true;
-            drawPauseButton();
-            play();
+        if(Timeline.segments.length > 0) {
+            if(playing) {
+                playing = false;
+                showPauseButton = false;
+                pause();
+                drawFrame(Timeline.getCurrentTime());
+                drawPlayButton();
+            } else {
+                playing = true;
+                showPauseButton = true;
+                drawPauseButton();
+                play();
+            }
         }
     }
 
@@ -311,18 +366,23 @@ var Display = (function() {
 //        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
-    return { init, play, pause };
+    return { init, play, pause, drawFrame };
 })();
 
 var Timeline = (function() {
     // references to imported videos with extra data for start time and duration
     var segments = [];
 
+    // the time at which the frame being displayed occurs
+    var currentTime = 0;
+
     // update variables
     var mouseDownLastUpdate = false;
     var draggingLeftEdge = false;
     var draggingRightEdge = false;
     var segmentBeingEdited = null;
+    var draggingTimeMarker = false;
+    var drawFrameCooldown = 0;
 
     function init() {
         timelineCanvas.ondragover = allowDrop;
@@ -330,10 +390,11 @@ var Timeline = (function() {
         timelineCanvas.onmousemove = mouseMove;
         timelineCanvas.onmousedown = mouseDown;
         timelineCanvas.onmouseup = mouseUp;
+        timelineCanvas.onmouseleave = mouseLeave;
         refresh();
     }
 
-    function updateClip(mousex, mousy, mousedown, edge1x, edge2x, edgeLength, edgey, edgeHeight, currentSegment) {
+    function updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, edgey, edgeHeight, currentSegment) {
         if(!mousedown) {
             draggingLeftEdge = false;
             draggingRightEdge = false;
@@ -342,14 +403,18 @@ var Timeline = (function() {
         }
 
         // if the user is dragging the left edge...
-        if((mousex < edge1x + edgeLength || draggingLeftEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+        if(((mousex > edge1x && mousex < edge1x + edgeLength && mousey > edgey && mousey < edgey + edgeHeight) ||
+                draggingLeftEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingLeftEdge = true;
             segmentBeingEdited = currentSegment;
+            return 1;
         }
         // else, if the user is dragging the right edge...
-        else if((mousex > edge2x || draggingRightEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
+        else if(((mousex > edge2x && mousex < edge2x + edgeLength && mousey > edgey && mousey < edgey + edgeHeight) ||
+                draggingRightEdge) && (!segmentBeingEdited || currentSegment === segmentBeingEdited)) {
             draggingRightEdge = true;
             segmentBeingEdited = currentSegment;
+            return 2;
         }
     }
 
@@ -367,46 +432,103 @@ var Timeline = (function() {
         var hoverColor = "#77bbff";
         var activeColor = "#77ffbb";
 
-        var offsetX = 50;
+        var offsetX = initialOffsetX = 50;
+
+        // calculate position and dimensions of the time marker
+        var timeMarkerX = initialOffsetX + currentTime / totalDuration * (timelineCanvas.width - initialOffsetX*2);
+        var timeMarkerY = timelineCanvas.height/4;
+        var timeMarkerWidth = 2;
+        var timeMarkerHeight = timelineCanvas.height/2;
+        var hoveringTimeMarker = false;
+
+        // determine whether the time marker is selected
+        if(mousex > timeMarkerX-timeMarkerWidth && mousex < timeMarkerX+timeMarkerWidth*3 &&
+                mousey > timeMarkerY && mousey < timeMarkerY + timeMarkerHeight) {
+            hoveringTimeMarker = true;
+
+            if(mousedown) {
+                draggingTimeMarker = true;
+            }
+        } else {
+            hoveringTimeMarker = false;
+        }
+
+        if(!mousedown) {
+            draggingTimeMarker = false;
+        }
+
         for(var segmentIndex in segments) {
             var segment = segments[segmentIndex];
             var imgHeight = timelineCanvas.height * 0.5;
             //var imgWidth = Math.floor(imgHeight * 16 / 9);
             var imgWidth = 200;
-            var rectLength = Math.floor(segment.video.duration / totalDuration * (timelineCanvas.width - 100));
+            var rectLength = Math.floor(segment.video.duration / totalDuration * (timelineCanvas.width - initialOffsetX*2));
 
             // calculate the co-ordinates and dimensions of the rectangle
             var y = timelineCanvas.height/2-imgHeight/4;
             var height = imgHeight/2;
 
-            var color;
-            //console.log(offsetX, offsetX + rectLength, y, y + height)
-            if(mousex > offsetX && mousex < offsetX + rectLength && mousey > y && mousey < y + height) {
-                // determine position of edge rectangles
-                var edge1x = offsetX;
-                var edge2x = offsetX + (rectLength * 0.9);
-                var edgeLength = rectLength * 0.1;
+            // determine position of edge rectangles
+            var edge1x = offsetX;
+            var edge2x = offsetX + (rectLength * 0.9);
+            var edgeLength = rectLength * 0.1;
 
-                var updating = updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, y, height, segment);
+            // determine whether one of the segments edges is being updated
+            var updating = 0;
+            if(!hoveringTimeMarker && !draggingTimeMarker) {
+                updating = updateClip(mousex, mousey, mousedown, edge1x, edge2x, edgeLength, y, height, segment);
+            }
+
+            // only draw 3 rectangle if the user isn't hovering/dragging the time marker, etc...
+            if((!hoveringTimeMarker && !draggingTimeMarker) && (updating > 0 ||
+                (mousex > offsetX && mousex < offsetX + rectLength && mousey > y && mousey < y + height))) {
 
                 // draw 3 rectangle, 2 indicating the edges which can be pressed
                 middleColor = colors[segmentIndex % colors.length];
 
                 // draw the middle rectangle
-                drawBorderRect(timelineCtx, offsetX + edgeLength, y, rectLength * 0.8, height, "#fff", middleColor);
+                timelineCtx.fillStyle = middleColor;
+                timelineCtx.fillRect(offsetX + edgeLength, y, rectLength * 0.8, height);
 
                 // draw the edge rectangles
-                drawBorderRect(timelineCtx, edge1x, y, edgeLength, height, "#fff", updating === 1 ? activeColor : hoverColor);
-                drawBorderRect(timelineCtx, edge2x, y, edgeLength, height, "#fff", updating === 2 ? activeColor : hoverColor);
+                timelineCtx.fillStyle = updating === 1 ? activeColor : hoverColor;
+                timelineCtx.fillRect(edge1x, y, edgeLength, height);
+                timelineCtx.fillStyle = updating === 2 ? activeColor : hoverColor;
+                timelineCtx.fillRect(edge2x, y, edgeLength, height);
             } else {
                 // draw one continuous rectangle for the clip
-                color = colors[segmentIndex % colors.length];
-                drawBorderRect(timelineCtx, offsetX, y, rectLength, height, "#fff", color);
+                timelineCtx.fillStyle = colors[segmentIndex % colors.length];
+                timelineCtx.fillRect(offsetX, y, rectLength, height);
             }
 
             //timelineCtx.drawImage(video, rectLength/2-imgWidth/2, timelineCanvas.height/2-imgHeight/2, imgWidth, imgHeight);
 
             offsetX += rectLength;
+        }
+
+        // draw the current point indicator line
+        timelineCtx.fillStyle = draggingTimeMarker ? activeColor : hoveringTimeMarker ? hoverColor : "#fff";
+        timelineCtx.fillRect(timeMarkerX, timeMarkerY, timeMarkerWidth, timeMarkerHeight);
+
+        if(draggingTimeMarker && drawFrameCooldown === 0) {
+            Display.drawFrame(currentTime);
+            drawFrameCooldown = 100;
+        }
+
+        // having a cooldown stops flickering
+        if(drawFrameCooldown > 0) {
+            drawFrameCooldown = 100;
+        }
+    }
+
+    function getCurrentTime() {
+        return currentTime;
+    }
+
+    function setCurrentTime(newTime) {
+        if(typeof newTime === "number") {
+            currentTime = newTime;
+            refresh();
         }
     }
 
@@ -445,13 +567,17 @@ var Timeline = (function() {
         mouseDownLastUpdate = false;
     }
 
+    function mouseLeave(e) {
+        mouseUp(e);
+    }
+
     function resize() {
         timelineCanvas.setAttribute("width", timelineCanvas.clientWidth);
         timelineCanvas.setAttribute("height", timelineCanvas.clientHeight);
         refresh();
     }
 
-    return { init, segments, refresh, resize };
+    return { init, segments, refresh, resize, getCurrentTime, setCurrentTime };
 })();
 
 var GifGenerator = (function() {
